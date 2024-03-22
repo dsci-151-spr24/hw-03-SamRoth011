@@ -74,8 +74,25 @@ Answers to this question are stored in the `harass5` variable in our dataset.
 
 1.  What are the possible responses to this question and how many respondents chose each of these answers?
 
+```{r}
+gss16 %>%
+  count(harass5)
+
+```
+***The possible responses are "Does not apply" (96), "No" (1136), "Yes" (237), and "N/A" (1398).***
+
 2.  What percent of the respondents for whom this question is applicable\
     (i.e. excluding `NA`s and `Does not apply`s) have been harassed by their superiors or co-workers at their job.
+    
+```{r}
+gss16 %>%
+  group_by(harass5) %>%
+  filter(harass5 != "NA" & harass5 != "Does not apply (i do not have a job/superior/co-worker)") %>%
+  summarize(count = n()) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+```
+***17% of respondents were harassed by their superiors or co-workers at their job.***
 
 🧶 ✅ ⬆️ Knit, *commit, and push your changes to GitHub with an appropriate commit message. Make sure to commit and push all changed files so that your Git pane is cleared up afterwards.*
 
