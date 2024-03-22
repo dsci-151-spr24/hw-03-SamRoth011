@@ -2,11 +2,14 @@
 title: "HW 03 - Exploring the GSS"
 author: "Sam Roth"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 ```{r include = FALSE}
 knitr::opts_chunk$set(
-  eval = FALSE,
+  eval = TRUE,
   out.width = "80%",
   fig.asp = 0.618,
   fig.width = 10,
@@ -25,8 +28,7 @@ In addition, since the GSS adopted questions from earlier surveys, trends can be
 The GSS contains a standard core of demographic, behavioural, and attitudinal questions, plus topics of special interest.
 Among the topics covered are civil liberties, crime and violence, intergroup tolerance, morality, national spending priorities, psychological well-being, social mobility, and stress and traumatic events.
 
-In this assignment we analyze data from the 2016 GSS, using it to estimate values of population parameters of interest about US adults.[^hw-08-exploring-gss-1]
-
+In this assignment we analyze data from the 2016 GSS, using it to estimate values of population parameters of interest about US adults.[\^hw-08-exploring-gss-1]
 
 ## Warm up
 
@@ -40,9 +42,9 @@ If anything is missing, commit and push again.
 
 We'll use the **tidyverse** package for much of the data wrangling and visualisation and the data lives in the **dsbox** package.
 
-You will need to install the packages and to install dsbox copy the following code into the console: 
+You will need to install the packages and to install dsbox copy the following code into the console:
 
-```
+```         
 install.packages("devtools")
 devtools::install_github("tidyverse/dsbox")
 ```
@@ -52,6 +54,9 @@ You can load them by running the following in your Console:
 ```{r load-packages, message = FALSE, eval = TRUE}
 library(tidyverse)
 library(dsbox)
+library(broom)
+library(modelr)
+library(dplyr)
 ```
 
 ## Data
@@ -79,11 +84,12 @@ gss16 %>%
   count(harass5)
 
 ```
+
 ***The possible responses are "Does not apply" (96), "No" (1136), "Yes" (237), and "N/A" (1398).***
 
 2.  What percent of the respondents for whom this question is applicable\
     (i.e. excluding `NA`s and `Does not apply`s) have been harassed by their superiors or co-workers at their job.
-    
+
 ```{r}
 gss16 %>%
   group_by(harass5) %>%
@@ -92,6 +98,7 @@ gss16 %>%
   mutate(percentage = (count / sum(count)) * 100)
 
 ```
+
 ***17% of respondents were harassed by their superiors or co-workers at their job.***
 
 🧶 ✅ ⬆️ Knit, *commit, and push your changes to GitHub with an appropriate commit message. Make sure to commit and push all changed files so that your Git pane is cleared up afterwards.*
@@ -104,25 +111,94 @@ For example, if the response is 2.5 hrs, this would be recorded as `emailhr = 2`
 
 3.  Create a new variable called `email` that combines these two variables to reports the number of minutes the respondents spend on email weekly.
 
-4.  Visualize the distribution of this new variable.
-    Find the mean and the median number of minutes respondents spend on email weekly.
-    Is the mean or the median a better measure of the typical among of time Americans spend on email weekly?
-    Why?
+```{r}
 
-5.  Create another new variable, `snap_insta` that is coded as "Yes" if the respondent reported using any of Snapchat (`snapchat`) or Instagram (`instagrm`), and "No" if not.
-    If the recorded value was `NA` for both of these questions, the value in your new variable should also be `NA`.
+gss16 <- gss16 %>%
+  mutate(email = (emailhr * 60) + emailmin)
+
+```
+
+4.  Visualize the distribution of this new variable. Find the mean and the median number of minutes respondents spend on email weekly. Is the mean or the median a better measure of the typical among of time Americans spend on email weekly? Why?
+
+```{r}
+ggplot(gss16, aes(x = email)) +
+  geom_histogram(binwidth = 60) +
+  labs(
+    x = "Minutes",
+    y= "Frequency"
+  )
+
+gss16 %>%
+  filter(!is.na(email)) %>%
+  summarize(mean = mean(email),
+            median = median(email))
+```
+
+***The median is a better measure of typical time Americans spend on email. It is closer to the most frequent times reported.***
+
+5.  Create another new variable, `snap_insta` that is coded as "Yes" if the respondent reported using any of Snapchat (`snapchat`) or Instagram (`instagrm`), and "No" if not. If the recorded value was `NA` for both of these questions, the value in your new variable should also be `NA`.
+
+```{r}
+gss16 <- gss16 %>%
+  mutate(snap_insta = ifelse(snapchat == "Yes" | instagrm == "Yes", "Yes", 
+                             ifelse(snapchat == "no" & instagrm == "no", "No",
+                             ifelse(is.na(snapchat) & is.na(instagrm), NA_character_, "No"))))
+
+
+gss16
+```
 
 6.  Calculate the percentage of Yes's for `snap_insta` among those who answered the question, i.e. excluding `NA`s.
 
-7.  What are the possible responses to the question *Last week were you working full time, part time, going to school, keeping house, or what?* and how many respondents chose each of these answers?
-    Note that this information is stored in the `wrkstat` variable.
+```{r}
+gss16 %>%
+  group_by(snap_insta) %>%
+  filter(!is.na(snap_insta)) %>%
+  summarize(count = n()) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+```
 
-8.  Fit a model predicting `email` (number of minutes per week spent on email) from `educ` (number of years of education), `wrkstat`, and `snap_insta`.
-    Interpret the slopes for each of these variables.
+***The percentage of Yes answers is 37.4%.***
 
-9.  Create a predicted values vs. residuals plot for this model.
-    Are there any issues with the model?
-    If yes, describe them.
+7.  What are the possible responses to the question *Last week were you working full time, part time, going to school, keeping house, or what?* and how many respondents chose each of these answers? Note that this information is stored in the `wrkstat` variable.
+
+```{r}
+
+gss16 %>%
+  count(wrkstat)
+
+```
+
+***The possible responses are: Keeping house (284), Other (89), Retired (574), School (76), Temp not working (57), Unempl, laid off (118), Working fulltime (1321), Working parttime (345), and NA (3).***
+
+8.  Fit a model predicting `email` (number of minutes per week spent on email) from `educ` (number of years of education), `wrkstat`, and `snap_insta`. Interpret the slopes for each of these variables.
+
+```{r}
+
+email_probs <- lm(email ~ educ + wrkstat + snap_insta, data = gss16) %>%
+  tidy()
+
+email_probs
+
+```
+***For each additional year of education, email minutes increase. For the work status (Other), (Retired), (Unemployed), (Fulltime), and (parttime), email minutes are higher. For people who use snapchat or instagram, email minutes increase.***
+
+9.  Create a predicted values vs. residuals plot for this model. Are there any issues with the model? If yes, describe them.
+```{r}
+
+email_probs <- lm(email ~ educ + wrkstat + snap_insta, data = gss16)
+
+
+predictions <- predict(email_probs)
+residuals <- residuals(email_probs)
+
+plot(predictions, residuals,
+     xlab = "Predicted Values",
+     ylab = "Residuals",
+     main = "Predicted Values vs. Residuals Plot")
+
+```
+
 
 🧶 ✅ ⬆️ Knit, *commit, and push your changes to GitHub with an appropriate commit message. Make sure to commit and push all changed files so that your Git pane is cleared up afterwards.*
 
@@ -142,9 +218,8 @@ And possible responses to this question are Strongly agree, Agree, Disagree, Str
 > I'm going to show you a seven-point scale on which the political views that people might hold are arranged from extremely liberal--point 1--to extremely conservative--point 7.
 > Where would you place yourself on this scale?
 
-
-**Note:** The levels of this variables are spelled inconsistently: "Extremely liberal" vs. "Extrmly conservative". Since this is the spelling that shows up in the data, you need to make sure this is how you spell the levels in your code.
-
+**Note:** The levels of this variables are spelled inconsistently: "Extremely liberal" vs. "Extrmly conservative".
+Since this is the spelling that shows up in the data, you need to make sure this is how you spell the levels in your code.
 
 And possible responses to this question are Extremely liberal, Liberal, Slightly liberal, Moderate, Slghtly conservative, Conservative, Extrmly conservative.
 Responses that were originally Don't know, No answer and Not applicable are already mapped to `NA`s upon data import.
@@ -161,4 +236,3 @@ Responses that were originally Don't know, No answer and Not applicable are alre
 12. Create a visualization that displays the relationship between these two new variables and interpret it.
 
 🧶 ✅ ⬆️ Knit, *commit, and push your changes to GitHub with an appropriate commit message. Make sure to commit and push all changed files so that your Git pane is cleared up afterwards and review the md document on GitHub to make sure you're happy with the final state of your work.*
-
