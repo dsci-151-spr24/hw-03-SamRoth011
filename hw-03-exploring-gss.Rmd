@@ -57,6 +57,7 @@ library(dsbox)
 library(broom)
 library(modelr)
 library(dplyr)
+library(ggplot2)
 ```
 
 ## Data
@@ -227,12 +228,55 @@ Responses that were originally Don't know, No answer and Not applicable are alre
 10. In a new variable, recode `advfront` such that Strongly Agree and Agree are mapped to `"Yes"`, and Disagree and Strongly disagree are mapped to `"No"`.
     The remaining levels can be left as is.
     Don't overwrite the existing `advfront`, instead pick a different, informative name for your new variable.
+    
+```{r}
+
+gss16 <- gss16 %>%
+  mutate(science_dichotomy = case_when(
+    advfront %in% c("Strongly agree", "Agree") ~ "Yes",
+    advfront %in% c("Disagree", "Strongly disagree") ~ "No",
+    TRUE ~ advfront
+  ))
+
+gss16
+
+```
+
 
 11. In a new variable, recode `polviews` such that Extremely liberal, Liberal, and Slightly liberal, are mapped to `"Liberal"`, and Slghtly conservative, Conservative, and Extrmly conservative disagree are mapped to `"Conservative"`.
     The remaining levels can be left as is.
     Make sure that the levels are in a reasonable order.
     Don't overwrite the existing `polviews`, instead pick a different, informative name for your new variable.
 
+```{r}
+
+gss16 <- gss16 %>%
+  mutate(pols_dichotomy = case_when(
+    polviews %in% c("Extremely liberal", "Liberal", "Slightly liberal") ~ "Liberal",
+    polviews %in% c("Slghtly conservative", "Conservative", "Extrmly conservative") ~ "Conservative",
+    TRUE ~ polviews
+  ))
+
+gss16
+
+```    
+
+
 12. Create a visualization that displays the relationship between these two new variables and interpret it.
+
+```{r, eval = FALSE}
+
+sci_vs_pols <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(science_dichotomy~pols_dichotomy, data = gss16) %>%
+  tidy()
+
+sci_vs_pols
+
+```
+*For some reason this code gives an error:* 
+***Error in fit(., science_dichotomy ~ pols_dichotomy, data = gss16) : 
+could not find function "fit"***
+*which I could not resolve, but I'm sure that this is the first step.*
 
 🧶 ✅ ⬆️ Knit, *commit, and push your changes to GitHub with an appropriate commit message. Make sure to commit and push all changed files so that your Git pane is cleared up afterwards and review the md document on GitHub to make sure you're happy with the final state of your work.*
